@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import en from '@/locales/en.json'
 import zhCn from '@/locales/zh_cn.json'
 import ru from '@/locales/ru.json'
+import ptBr from '@/locales/pt_br.json'
 
 type LocaleMessages = typeof en
 type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T
@@ -9,7 +10,8 @@ type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } 
 const locales: Record<string, DeepPartial<LocaleMessages>> = {
   en,
   zh_cn: zhCn,
-  ru
+  ru,
+  pt_br: ptBr
 }
 
 const currentLocale = ref('en')
@@ -55,7 +57,8 @@ export function useI18n() {
   const localeNames: Record<string, string> = {
     en: 'English',
     zh_cn: '中文',
-    ru: 'Русский'
+    ru: 'Русский',
+    pt_br: 'Português (Brasil)'
   }
 
   const savedLocale = localStorage.getItem('locale')

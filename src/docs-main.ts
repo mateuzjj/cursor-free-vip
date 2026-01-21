@@ -6,6 +6,7 @@ import './assets/index.css'
 
 import en from './locales/en.json'
 import zh_cn from './locales/zh_cn.json'
+import pt_br from './locales/pt_br.json'
 
 const i18n = createI18n({
   legacy: false,
@@ -13,7 +14,8 @@ const i18n = createI18n({
   fallbackLocale: 'en',
   messages: {
     en,
-    zh_cn
+    zh_cn,
+    pt_br
   }
 })
 

@@ -61,7 +61,7 @@ const createWindow = () => {
 app.whenReady().then(async () => {
   await initSqlJs()
   createWindow()
-  
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
@@ -126,7 +126,7 @@ ipcMain.handle('app:getVersion', async () => {
 ipcMain.handle('system:openPath', async (_, path: string) => {
   try {
     let pathToOpen = path
-    
+
     if (existsSync(path)) {
       try {
         const stats = statSync(path)
@@ -149,7 +149,7 @@ ipcMain.handle('system:openPath', async (_, path: string) => {
         }
       }
     }
-    
+
     await shell.openPath(pathToOpen)
     return { success: true }
   } catch (err: any) {
@@ -161,7 +161,7 @@ ipcMain.handle('system:saveScreenshot', async (_, imageData: string) => {
   try {
     let downloadsPath: string
     const platform = process.platform
-    
+
     if (platform === 'win32') {
       downloadsPath = join(process.env.USERPROFILE || homedir(), 'Downloads')
     } else if (platform === 'darwin') {
@@ -169,20 +169,20 @@ ipcMain.handle('system:saveScreenshot', async (_, imageData: string) => {
     } else {
       downloadsPath = process.env.XDG_DOWNLOAD_DIR || join(homedir(), 'Downloads')
     }
-    
+
     if (!existsSync(downloadsPath)) {
       mkdirSync(downloadsPath, { recursive: true })
     }
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
     const filename = `cursor-free-vip-log-${timestamp}.png`
     const filePath = join(downloadsPath, filename)
-    
+
     const base64Data = imageData.replace(/^data:image\/png;base64,/, '')
     const buffer = Buffer.from(base64Data, 'base64')
-    
+
     writeFileSync(filePath, buffer)
-    
+
     return { success: true, path: filePath }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -199,52 +199,52 @@ ipcMain.handle('fix:workbenchFile', async (event) => {
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   sendLog('[INFO] Starting workbench file fix...')
-  
+
   try {
     const paths = getCursorPaths()
     const targetPath = join(paths.cursorPath, 'out', 'vs', 'workbench', 'workbench.desktop.main.js')
-    
+
     let sourcePath: string
     if (process.env.VITE_DEV_SERVER_URL) {
       sourcePath = join(process.cwd(), 'resources', 'fixes', 'workbench.desktop.main.js')
     } else {
       const appPath = app.getAppPath()
       sourcePath = join(appPath, 'resources', 'fixes', 'workbench.desktop.main.js')
-      
+
       if (!existsSync(sourcePath)) {
         sourcePath = join(__dirname, '..', 'resources', 'fixes', 'workbench.desktop.main.js')
       }
     }
-    
+
     if (!existsSync(sourcePath)) {
       sendLog(`[ERROR] Source file not found: ${sourcePath}`)
       sendLog(`[INFO] Please ensure the workbench.desktop.main.js file is in the resources/fixes folder`)
       return { success: false, logs, error: 'Source file not found' }
     }
-    
+
     sendLog(`[INFO] Source file found: ${sourcePath}`)
     sendLog(`[INFO] Target path: ${targetPath}`)
-    
+
     const targetDir = dirname(targetPath)
     if (!existsSync(targetDir)) {
       sendLog(`[INFO] Creating target directory: ${targetDir}`)
       await fs.ensureDir(targetDir)
     }
-    
+
     if (existsSync(targetPath)) {
       sendLog(`[INFO] File exists, overwriting...`)
     }
-    
+
     sendLog(`[INFO] Copying file...`)
     await fs.copy(sourcePath, targetPath)
-    
+
     sendLog(`[OK] File copied successfully`)
     sendLog(`[OK] Workbench file fix completed`)
-    
+
     return { success: true, logs }
-    
+
   } catch (err: any) {
     sendLog(`[ERROR] ${err.message}`)
     return { success: false, logs, error: err.message }
@@ -257,63 +257,63 @@ ipcMain.handle('fix:cursorLocation', async (event) => {
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   sendLog('[INFO] Starting Cursor location fix...')
-  
+
   try {
     let sourcePath: string
     let targetPath: string
-    
+
     if (process.platform === 'win32') {
       const programFiles = process.env.ProgramFiles || 'C:\\Program Files'
       sourcePath = join(programFiles, 'Cursor')
       const localAppData = process.env.LOCALAPPDATA || ''
       targetPath = join(localAppData, 'Programs', 'Cursor')
-      
+
       if (!existsSync(sourcePath)) {
         sendLog(`[INFO] Cursor not found in Program Files: ${sourcePath}`)
         sendLog(`[INFO] Checking if already in correct location...`)
-        
+
         if (existsSync(targetPath)) {
           sendLog(`[OK] Cursor is already in the correct location: ${targetPath}`)
           return { success: true, logs, alreadyFixed: true }
         }
-        
+
         sendLog(`[ERROR] Cursor installation not found in expected locations`)
         return { success: false, logs, error: 'Cursor installation not found' }
       }
-      
+
       sendLog(`[INFO] Found Cursor in Program Files: ${sourcePath}`)
       sendLog(`[INFO] Target location: ${targetPath}`)
-      
+
       if (existsSync(targetPath)) {
         sendLog(`[WARN] Target location already exists: ${targetPath}`)
         sendLog(`[INFO] Removing existing target...`)
         await fs.remove(targetPath)
       }
-      
+
       const targetParent = dirname(targetPath)
       await fs.ensureDir(targetParent)
-      
+
       sendLog(`[INFO] Moving Cursor folder...`)
       sendLog(`[INFO] This may take a few moments...`)
-      
+
       await fs.move(sourcePath, targetPath)
-      
+
       sendLog(`[OK] Cursor folder moved successfully`)
       sendLog(`[OK] Location fix completed`)
-      
+
     } else if (process.platform === 'darwin') {
       const systemPath = '/Applications/Cursor.app'
       const userPath = join(process.env.HOME || '', 'Applications', 'Cursor.app')
-      
+
       if (existsSync(systemPath) && !existsSync(userPath)) {
         sendLog(`[INFO] Found Cursor in system location: ${systemPath}`)
         sendLog(`[INFO] Moving to user Applications folder...`)
-        
+
         await fs.ensureDir(dirname(userPath))
         await fs.move(systemPath, userPath)
-        
+
         sendLog(`[OK] Cursor moved to user Applications folder`)
       } else if (existsSync(userPath)) {
         sendLog(`[OK] Cursor is already in user location`)
@@ -321,19 +321,19 @@ ipcMain.handle('fix:cursorLocation', async (event) => {
         sendLog(`[INFO] Cursor installation not found in expected locations`)
         return { success: false, logs, error: 'Cursor installation not found' }
       }
-      
+
       sendLog(`[OK] Location fix completed`)
-      
+
     } else {
       const systemPaths = [
         '/opt/Cursor',
         '/usr/share/cursor',
         '/usr/local/share/cursor'
       ]
-      
+
       const home = process.env.HOME || ''
       const userPath = join(home, '.local', 'share', 'Cursor')
-      
+
       let foundSystemPath: string | null = null
       for (const sysPath of systemPaths) {
         if (existsSync(sysPath)) {
@@ -341,19 +341,19 @@ ipcMain.handle('fix:cursorLocation', async (event) => {
           break
         }
       }
-      
+
       if (foundSystemPath) {
         sendLog(`[INFO] Found Cursor in system location: ${foundSystemPath}`)
         sendLog(`[INFO] Moving to user location: ${userPath}`)
-        
+
         if (existsSync(userPath)) {
           sendLog(`[WARN] Target location already exists, removing...`)
           await fs.remove(userPath)
         }
-        
+
         await fs.ensureDir(dirname(userPath))
         await fs.move(foundSystemPath, userPath)
-        
+
         sendLog(`[OK] Cursor moved to user location`)
       } else if (existsSync(userPath)) {
         sendLog(`[OK] Cursor is already in user location`)
@@ -361,12 +361,12 @@ ipcMain.handle('fix:cursorLocation', async (event) => {
         sendLog(`[INFO] Cursor installation not found in expected locations`)
         return { success: false, logs, error: 'Cursor installation not found' }
       }
-      
+
       sendLog(`[OK] Location fix completed`)
     }
-    
+
     return { success: true, logs }
-    
+
   } catch (err: any) {
     sendLog(`[ERROR] ${err.message}`)
     return { success: false, logs, error: err.message }
@@ -467,7 +467,7 @@ function getConfigDir(): string {
 
 function getCursorPaths(): { storagePath: string; sqlitePath: string; cursorPath: string; machineIdPath: string } {
   const platform = process.platform
-  
+
   if (platform === 'win32') {
     const appdata = process.env.APPDATA || ''
     const localappdata = process.env.LOCALAPPDATA || ''
@@ -489,7 +489,7 @@ function getCursorPaths(): { storagePath: string; sqlitePath: string; cursorPath
     const home = process.env.HOME || ''
     const configDir = join(home, '.config')
     const cursorDir = existsSync(join(configDir, 'Cursor')) ? 'Cursor' : 'cursor'
-    
+
     return {
       storagePath: join(configDir, cursorDir, 'User', 'globalStorage', 'storage.json'),
       sqlitePath: join(configDir, cursorDir, 'User', 'globalStorage', 'state.vscdb'),
@@ -514,11 +514,11 @@ ipcMain.handle('paths:getConfigDir', () => {
 ipcMain.handle('config:load', () => {
   const configDir = getConfigDir()
   const configFile = join(configDir, 'config.json')
-  
+
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true })
   }
-  
+
   if (existsSync(configFile)) {
     try {
       return JSON.parse(readFileSync(configFile, 'utf-8'))
@@ -532,11 +532,11 @@ ipcMain.handle('config:load', () => {
 ipcMain.handle('config:save', (_, config: object) => {
   const configDir = getConfigDir()
   const configFile = join(configDir, 'config.json')
-  
+
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true })
   }
-  
+
   writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf-8')
   return true
 })
@@ -545,11 +545,11 @@ ipcMain.handle('config:save', (_, config: object) => {
 ipcMain.handle('colors:load', () => {
   const configDir = getConfigDir()
   const colorsFile = join(configDir, 'colors.json')
-  
+
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true })
   }
-  
+
   if (existsSync(colorsFile)) {
     try {
       return JSON.parse(readFileSync(colorsFile, 'utf-8'))
@@ -558,18 +558,18 @@ ipcMain.handle('colors:load', () => {
       return null
     }
   }
-  
+
   return null
 })
 
 ipcMain.handle('colors:save', (_, colors: object) => {
   const configDir = getConfigDir()
   const colorsFile = join(configDir, 'colors.json')
-  
+
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true })
   }
-  
+
   writeFileSync(colorsFile, JSON.stringify(colors, null, 2), 'utf-8')
   return true
 })
@@ -582,39 +582,39 @@ async function updateSqliteDatabase(dbPath: string, updates: Record<string, stri
   if (!SQL) {
     await initSqlJs()
   }
-  
+
   if (!SQL) {
     sendLog('[WARN] SQLite not available')
     return false
   }
-  
+
   try {
     const buffer = readFileSync(dbPath)
     const db = new SQL.Database(buffer)
-    
+
     for (const [key, value] of Object.entries(updates)) {
       try {
         const updateStmt = db.prepare('UPDATE ItemTable SET value = ? WHERE key = ?')
         updateStmt.run([value, key])
         updateStmt.free()
-        
+
         const changes = db.getRowsModified()
         if (changes === 0) {
           const insertStmt = db.prepare('INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)')
           insertStmt.run([key, value])
           insertStmt.free()
         }
-        
+
         sendLog(`  [OK] ${key}: updated`)
       } catch (err: any) {
         sendLog(`  [WARN] ${key}: ${err.message}`)
       }
     }
-    
+
     const data = db.export()
     const outputBuffer = Buffer.from(data)
     writeFileSync(dbPath, outputBuffer)
-    
+
     db.close()
     return true
   } catch (err: any) {
@@ -627,23 +627,23 @@ async function readSqliteValue(dbPath: string, key: string): Promise<string | nu
   if (!SQL) {
     await initSqlJs()
   }
-  
+
   if (!SQL || !existsSync(dbPath)) {
     return null
   }
-  
+
   try {
     const buffer = readFileSync(dbPath)
     const db = new SQL.Database(buffer)
-    
+
     const stmt = db.prepare('SELECT value FROM ItemTable WHERE key = ?')
     stmt.bind([key])
-    
+
     let value: string | null = null
     if (stmt.step()) {
       value = stmt.get()[0] as string
     }
-    
+
     stmt.free()
     db.close()
     return value
@@ -661,7 +661,7 @@ function generateNewIds() {
   const machineId = createHash('sha256').update(randomBytes(32)).digest('hex')
   const macMachineId = createHash('sha512').update(randomBytes(64)).digest('hex')
   const sqmId = `{${uuidv4().toUpperCase()}}`
-  
+
   return {
     'telemetry.devDeviceId': devDeviceId,
     'telemetry.macMachineId': macMachineId,
@@ -674,48 +674,119 @@ function generateNewIds() {
 ipcMain.handle('machine:resetIds', async (event) => {
   const paths = getCursorPaths()
   const logs: string[] = []
-  
+
   const sendLog = (message: string) => {
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   try {
     sendLog('[INFO] Starting machine ID reset...')
-    
+
     if (!existsSync(paths.storagePath)) {
       sendLog(`[ERROR] Storage file not found: ${paths.storagePath}`)
       return { success: false, logs, error: 'Storage file not found' }
     }
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const backupPath = `${paths.storagePath}.bak.${timestamp}`
     copyFileSync(paths.storagePath, backupPath)
     sendLog(`[INFO] Backup created: ${backupPath}`)
-    
+
     sendLog('[INFO] Reading storage.json...')
-    const storageData = JSON.parse(readFileSync(paths.storagePath, 'utf-8'))
+    let rawContent = readFileSync(paths.storagePath, 'utf-8')
+
+    // Strip BOM (Byte Order Mark) if present
+    if (rawContent.charCodeAt(0) === 0xFEFF) {
+      rawContent = rawContent.slice(1)
+      sendLog('[INFO] Stripped BOM from file')
+    }
+
+    // Trim whitespace
+    rawContent = rawContent.trim()
+
+    // Parse JSON with better error handling
+    let storageData
+    try {
+      storageData = JSON.parse(rawContent)
+    } catch (parseError: any) {
+      sendLog(`[ERROR] Failed to parse JSON: ${parseError.message}`)
+      sendLog(`[INFO] First 100 characters: ${rawContent.substring(0, 100)}`)
+      return { success: false, logs, error: `Invalid JSON in storage.json: ${parseError.message}` }
+    }
     const newIds = generateNewIds()
-    
+
     Object.assign(storageData, newIds)
-    
+
     sendLog('[INFO] Writing new IDs to storage.json...')
+
+    // Remove ReadOnly attribute if present
+    let wasReadOnly = false
+    try {
+      const stats = statSync(paths.storagePath)
+      // Check if file is read-only (no write permission)
+      if (!(stats.mode & 0o200)) {
+        wasReadOnly = true
+        chmodSync(paths.storagePath, 0o666)
+        sendLog('[INFO] Removed ReadOnly attribute')
+      }
+    } catch (err: any) {
+      sendLog(`[WARN] Could not check file permissions: ${err.message}`)
+    }
+
     writeFileSync(paths.storagePath, JSON.stringify(storageData, null, 4), 'utf-8')
-    
+
+    // Restore ReadOnly attribute if it was set
+    if (wasReadOnly) {
+      try {
+        chmodSync(paths.storagePath, 0o444)
+        sendLog('[INFO] Restored ReadOnly attribute')
+      } catch (err: any) {
+        sendLog(`[WARN] Could not restore ReadOnly: ${err.message}`)
+      }
+    }
+
     const machineIdDir = join(paths.machineIdPath, '..')
     if (!existsSync(machineIdDir)) {
       mkdirSync(machineIdDir, { recursive: true })
     }
+
+    // Remove ReadOnly attribute from machineId if present
+    let machineIdWasReadOnly = false
+    if (existsSync(paths.machineIdPath)) {
+      try {
+        const stats = statSync(paths.machineIdPath)
+        if (!(stats.mode & 0o200)) {
+          machineIdWasReadOnly = true
+          chmodSync(paths.machineIdPath, 0o666)
+          sendLog('[INFO] Removed ReadOnly from machineId')
+        }
+      } catch (err: any) {
+        sendLog(`[WARN] Could not check machineId permissions: ${err.message}`)
+      }
+    }
+
     writeFileSync(paths.machineIdPath, newIds['telemetry.devDeviceId'], 'utf-8')
+
+    // Restore ReadOnly attribute to machineId
+    if (machineIdWasReadOnly) {
+      try {
+        chmodSync(paths.machineIdPath, 0o444)
+        sendLog('[INFO] Restored ReadOnly to machineId')
+      } catch (err: any) {
+        sendLog(`[WARN] Could not restore machineId ReadOnly: ${err.message}`)
+      }
+    }
+
     sendLog('[OK] Machine ID file updated')
-    
+
     if (existsSync(paths.sqlitePath)) {
       sendLog('[INFO] Updating SQLite database...')
-      
+
       const sqliteBackupPath = `${paths.sqlitePath}.bak.${timestamp}`
       copyFileSync(paths.sqlitePath, sqliteBackupPath)
       sendLog(`[INFO] SQLite backup created`)
-      
+
       const sqliteUpdates: Record<string, string> = {
         'telemetry.devDeviceId': newIds['telemetry.devDeviceId'],
         'telemetry.macMachineId': newIds['telemetry.macMachineId'],
@@ -723,13 +794,13 @@ ipcMain.handle('machine:resetIds', async (event) => {
         'telemetry.sqmId': newIds['telemetry.sqmId'],
         'storage.serviceMachineId': newIds['storage.serviceMachineId']
       }
-      
+
       const sqliteSuccess = await updateSqliteDatabase(paths.sqlitePath, sqliteUpdates, sendLog)
       if (sqliteSuccess) {
         sendLog('[OK] SQLite database updated')
       }
     }
-    
+
     if (process.platform === 'win32') {
       sendLog('[INFO] Updating Windows registry...')
       try {
@@ -740,7 +811,7 @@ ipcMain.handle('machine:resetIds', async (event) => {
         sendLog('[WARN] Could not update registry (may need admin rights)')
       }
     }
-    
+
     sendLog('')
     sendLog('[OK] Machine ID reset completed')
     sendLog('')
@@ -748,9 +819,9 @@ ipcMain.handle('machine:resetIds', async (event) => {
     for (const [key, value] of Object.entries(newIds)) {
       sendLog(`  ${key}: ${value}`)
     }
-    
+
     return { success: true, logs, newIds }
-    
+
   } catch (err: any) {
     sendLog(`[ERROR] ${err.message}`)
     return { success: false, logs, error: err.message }
@@ -767,9 +838,9 @@ ipcMain.handle('cursor:quit', async (event) => {
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   sendLog('[INFO] Attempting to close Cursor...')
-  
+
   try {
     if (process.platform === 'win32') {
       execSync('taskkill /F /IM Cursor.exe /T', { stdio: 'ignore' })
@@ -794,13 +865,13 @@ ipcMain.handle('update:disable', async (event) => {
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   sendLog('[INFO] Disabling Cursor auto-update...')
-  
+
   try {
     let updaterPath: string
     let updateYmlPath: string
-    
+
     if (process.platform === 'win32') {
       updaterPath = join(process.env.LOCALAPPDATA || '', 'cursor-updater')
       updateYmlPath = join(process.env.LOCALAPPDATA || '', 'Programs', 'Cursor', 'resources', 'app-update.yml')
@@ -811,7 +882,7 @@ ipcMain.handle('update:disable', async (event) => {
       updaterPath = join(process.env.HOME || '', '.config', 'cursor-updater')
       updateYmlPath = join(process.env.HOME || '', '.config', 'cursor', 'resources', 'app-update.yml')
     }
-    
+
     if (await fs.pathExists(updaterPath)) {
       try {
         sendLog(`[INFO] Removing updater directory: ${updaterPath}`)
@@ -839,7 +910,7 @@ ipcMain.handle('update:disable', async (event) => {
     } else {
       sendLog(`[INFO] Updater directory does not exist: ${updaterPath}`)
     }
-    
+
     if (await fs.pathExists(updateYmlPath)) {
       try {
         sendLog(`[INFO] Modifying update config: ${updateYmlPath}`)
@@ -849,9 +920,9 @@ ipcMain.handle('update:disable', async (event) => {
           } catch {
           }
         }
-        
+
         await fs.writeFile(updateYmlPath, '# Auto-update disabled\nversion: 0.0.0\n', 'utf-8')
-        
+
         if (process.platform === 'win32') {
           try {
             execSync(`attrib +r "${updateYmlPath}"`, { stdio: 'ignore' })
@@ -867,15 +938,15 @@ ipcMain.handle('update:disable', async (event) => {
     } else {
       sendLog(`[INFO] Update config file does not exist: ${updateYmlPath}`)
     }
-    
+
     try {
       const dir = join(updaterPath, '..')
       sendLog(`[INFO] Creating blocking file in: ${dir}`)
-      
+
       await fs.ensureDir(dir)
-      
+
       await fs.writeFile(updaterPath, '# Auto-update disabled by Cursor Free VIP\n', 'utf-8')
-      
+
       if (process.platform === 'win32') {
         try {
           execSync(`attrib +r "${updaterPath}"`, { stdio: 'ignore' })
@@ -888,10 +959,10 @@ ipcMain.handle('update:disable', async (event) => {
     } catch (err: any) {
       sendLog(`[WARN] Could not create blocking file: ${err.message}`)
     }
-    
+
     sendLog('[OK] Auto-update disabled successfully')
     return { success: true, logs }
-    
+
   } catch (err: any) {
     sendLog(`[ERROR] ${err.message}`)
     sendLog(`[ERROR] Stack: ${err.stack}`)
@@ -909,33 +980,33 @@ ipcMain.handle('token:bypass', async (event) => {
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   sendLog('[INFO] Starting token limit bypass...')
-  
+
   try {
     const paths = getCursorPaths()
     const workbenchPath = join(paths.cursorPath, 'out', 'vs', 'workbench', 'workbench.desktop.main.js')
-    
+
     if (!existsSync(workbenchPath)) {
       sendLog(`[ERROR] Workbench file not found: ${workbenchPath}`)
       return { success: false, logs, error: 'Workbench file not found' }
     }
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const backupPath = `${workbenchPath}.bak.${timestamp}`
     copyFileSync(workbenchPath, backupPath)
     sendLog(`[INFO] Backup created`)
-    
+
     let content = readFileSync(workbenchPath, 'utf-8')
-    
+
     const replacements: [string, string][] = [
       ['<div>Pro Trial', '<div>Pro'],
       ['py-1">Auto-select', 'py-1">Bypass-Version-Pin'],
-      ['async getEffectiveTokenLimit(e){const n=e.modelName;if(!n)return 2e5;', 
-       'async getEffectiveTokenLimit(e){return 9000000;const n=e.modelName;if(!n)return 9e5;'],
+      ['async getEffectiveTokenLimit(e){const n=e.modelName;if(!n)return 2e5;',
+        'async getEffectiveTokenLimit(e){return 9000000;const n=e.modelName;if(!n)return 9e5;'],
       ['notifications-toasts', 'notifications-toasts hidden']
     ]
-    
+
     let modified = false
     for (const [oldStr, newStr] of replacements) {
       if (content.includes(oldStr)) {
@@ -943,16 +1014,16 @@ ipcMain.handle('token:bypass', async (event) => {
         modified = true
       }
     }
-    
+
     if (modified) {
       writeFileSync(workbenchPath, content, 'utf-8')
       sendLog('[OK] Token limit bypass applied')
     } else {
       sendLog('[INFO] No modifications needed or already applied')
     }
-    
+
     return { success: true, logs }
-    
+
   } catch (err: any) {
     sendLog(`[ERROR] ${err.message}`)
     return { success: false, logs, error: err.message }
@@ -965,13 +1036,13 @@ ipcMain.handle('token:bypass', async (event) => {
 
 ipcMain.handle('account:getInfo', async () => {
   const paths = getCursorPaths()
-  
+
   try {
     let email: string | null = null
     let token: string | null = null
     let machineId: string | null = null
     let devDeviceId: string | null = null
-    
+
     if (existsSync(paths.storagePath)) {
       const data = JSON.parse(readFileSync(paths.storagePath, 'utf-8'))
       email = data['cursorAuth/cachedEmail'] || null
@@ -979,7 +1050,7 @@ ipcMain.handle('account:getInfo', async () => {
       machineId = data['telemetry.machineId'] || null
       devDeviceId = data['telemetry.devDeviceId'] || null
     }
-    
+
     if (existsSync(paths.sqlitePath)) {
       if (!email) {
         email = await readSqliteValue(paths.sqlitePath, 'cursorAuth/cachedEmail')
@@ -994,7 +1065,7 @@ ipcMain.handle('account:getInfo', async () => {
         devDeviceId = await readSqliteValue(paths.sqlitePath, 'telemetry.devDeviceId')
       }
     }
-    
+
     return { email, token, machineId, devDeviceId }
   } catch {
     return { email: null, token: null, machineId: null, devDeviceId: null }
@@ -1003,23 +1074,23 @@ ipcMain.handle('account:getInfo', async () => {
 
 ipcMain.handle('account:getSubscriptionInfo', async () => {
   const paths = getCursorPaths()
-  
+
   try {
     let token: string | null = null
-    
+
     if (existsSync(paths.storagePath)) {
       const data = JSON.parse(readFileSync(paths.storagePath, 'utf-8'))
       token = data['cursorAuth/accessToken'] || null
     }
-    
+
     if (!token && existsSync(paths.sqlitePath)) {
       token = await readSqliteValue(paths.sqlitePath, 'cursorAuth/accessToken')
     }
-    
+
     if (!token) {
       return { success: false, subscriptionType: null, daysRemaining: null }
     }
-    
+
     const url = 'https://api2.cursor.sh/auth/full_stripe_profile'
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -1027,23 +1098,23 @@ ipcMain.handle('account:getSubscriptionInfo', async () => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     }
-    
+
     const response = await fetch(url, { headers, method: 'GET' })
-    
+
     if (!response.ok) {
       return { success: false, subscriptionType: null, daysRemaining: null }
     }
-    
+
     const subscriptionData = await response.json()
-    
+
     let subscriptionType: string | null = null
     let daysRemaining: number | null = null
-    
+
     if (subscriptionData) {
       if ('membershipType' in subscriptionData) {
         const membershipType = subscriptionData.membershipType || ''
         const subscriptionStatus = subscriptionData.subscriptionStatus || ''
-        
+
         if (subscriptionStatus === 'active') {
           if (membershipType === 'pro') {
             subscriptionType = 'Pro'
@@ -1065,7 +1136,7 @@ ipcMain.handle('account:getSubscriptionInfo', async () => {
         const subscription = subscriptionData.subscription
         const plan = subscription?.plan?.nickname || 'Unknown'
         const status = subscription?.status || 'unknown'
-        
+
         if (status === 'active') {
           if (plan.toLowerCase().includes('pro') && !plan.toLowerCase().includes('trial')) {
             subscriptionType = 'Pro'
@@ -1084,10 +1155,10 @@ ipcMain.handle('account:getSubscriptionInfo', async () => {
           subscriptionType = `${plan} (${status})`
         }
       }
-      
+
       daysRemaining = subscriptionData.daysRemainingOnTrial ?? null
     }
-    
+
     return { success: true, subscriptionType, daysRemaining }
   } catch {
     return { success: false, subscriptionType: null, daysRemaining: null }
@@ -1115,7 +1186,7 @@ ipcMain.handle('accounts:getAccounts', async () => {
     if (!existsSync(accountsPath)) {
       return { success: true, accounts: [] }
     }
-    
+
     const data = readFileSync(accountsPath, 'utf-8')
     const accounts = JSON.parse(data)
     return { success: true, accounts: Array.isArray(accounts) ? accounts : [] }
@@ -1129,7 +1200,7 @@ ipcMain.handle('accounts:getAccountsFromFile', async (event, filePath: string) =
     if (!existsSync(filePath)) {
       return { success: true, accounts: [] }
     }
-    
+
     const data = readFileSync(filePath, 'utf-8')
     const accounts = JSON.parse(data)
     return { success: true, accounts: Array.isArray(accounts) ? accounts : [] }
@@ -1142,20 +1213,20 @@ ipcMain.handle('accounts:createAccount', async (event, accountData: { name: stri
   try {
     const accountsPath = targetFilePath || getAccountsFilePath()
     const accountsDir = dirname(accountsPath)
-    
+
     if (!existsSync(accountsDir)) {
       mkdirSync(accountsDir, { recursive: true })
     }
-    
+
     let accounts: Account[] = []
     if (existsSync(accountsPath)) {
       const data = readFileSync(accountsPath, 'utf-8')
       accounts = JSON.parse(data)
       if (!Array.isArray(accounts)) accounts = []
     }
-    
+
     const newIds = generateNewIds()
-    
+
     const newAccount: Account = {
       id: uuidv4(),
       name: accountData.name,
@@ -1166,11 +1237,11 @@ ipcMain.handle('accounts:createAccount', async (event, accountData: { name: stri
       devDeviceId: newIds['telemetry.devDeviceId'],
       createdAt: new Date().toISOString()
     }
-    
+
     accounts.push(newAccount)
-    
+
     writeFileSync(accountsPath, JSON.stringify(accounts, null, 2), 'utf-8')
-    
+
     return { success: true, account: newAccount }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -1187,23 +1258,23 @@ ipcMain.handle('accounts:importAccounts', async (event) => {
       ],
       properties: ['openFile']
     })
-    
+
     if (result.canceled || !result.filePaths.length) {
       return { success: false, error: 'No file selected' }
     }
-    
+
     const filePath = result.filePaths[0]
     if (!existsSync(filePath)) {
       return { success: false, error: 'File not found' }
     }
-    
+
     const data = readFileSync(filePath, 'utf-8')
     const importedAccounts = JSON.parse(data)
-    
+
     if (!Array.isArray(importedAccounts)) {
       return { success: false, error: 'Invalid JSON format: expected array' }
     }
-    
+
     return { success: true, filePath, accounts: importedAccounts, imported: importedAccounts.length }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -1216,7 +1287,7 @@ ipcMain.handle('accounts:exportAccounts', async () => {
     if (!existsSync(accountsPath)) {
       return { success: false, error: 'No accounts file found' }
     }
-    
+
     const data = readFileSync(accountsPath, 'utf-8')
     return { success: true, data }
   } catch (err: any) {
@@ -1230,31 +1301,31 @@ ipcMain.handle('accounts:switchAccount', async (event, accountId: string) => {
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   try {
     const accountsPath = getAccountsFilePath()
     if (!existsSync(accountsPath)) {
       return { success: false, logs, error: 'Accounts file not found' }
     }
-    
+
     const data = readFileSync(accountsPath, 'utf-8')
     const accounts: Account[] = JSON.parse(data)
-    
+
     const account = accounts.find(a => a.id === accountId)
     if (!account) {
       return { success: false, logs, error: 'Account not found' }
     }
-    
+
     sendLog(`[INFO] Switching to account: ${account.name}`)
     sendLog('[INFO] Applying account credentials to Cursor...')
-    
+
     const paths = getCursorPaths()
-    
+
     let storageData: Record<string, any> = {}
     if (existsSync(paths.storagePath)) {
       storageData = JSON.parse(readFileSync(paths.storagePath, 'utf-8'))
     }
-    
+
     storageData['cursorAuth/cachedSignUpType'] = 'Auth_0'
     storageData['cursorAuth/cachedEmail'] = account.email
     storageData['cursorAuth/accessToken'] = account.accessToken
@@ -1267,14 +1338,14 @@ ipcMain.handle('accounts:switchAccount', async (event, accountId: string) => {
     if (account.devDeviceId) {
       storageData['telemetry.devDeviceId'] = account.devDeviceId
     }
-    
+
     const storageDir = dirname(paths.storagePath)
     if (!existsSync(storageDir)) {
       mkdirSync(storageDir, { recursive: true })
     }
     writeFileSync(paths.storagePath, JSON.stringify(storageData, null, 4), 'utf-8')
     sendLog('[OK] storage.json updated')
-    
+
     if (existsSync(paths.sqlitePath)) {
       sendLog('[INFO] Updating SQLite database...')
       const sqliteUpdates: Record<string, string> = {
@@ -1291,21 +1362,21 @@ ipcMain.handle('accounts:switchAccount', async (event, accountId: string) => {
       if (account.devDeviceId) {
         sqliteUpdates['telemetry.devDeviceId'] = account.devDeviceId
       }
-      
+
       const success = await updateSqliteDatabase(paths.sqlitePath, sqliteUpdates, sendLog)
       if (success) {
         sendLog('[OK] SQLite database updated')
       }
     }
-    
+
     if (account.machineId && existsSync(paths.machineIdPath)) {
       writeFileSync(paths.machineIdPath, account.machineId, 'utf-8')
       sendLog('[OK] Machine ID file updated')
     }
-    
+
     sendLog('[OK] Account switched successfully')
     sendLog('[INFO] Please restart Cursor for changes to take effect')
-    
+
     return { success: true, logs }
   } catch (err: any) {
     sendLog(`[ERROR] ${err.message}`)
@@ -1319,14 +1390,14 @@ ipcMain.handle('accounts:deleteAccount', async (event, accountId: string, target
     if (!existsSync(accountsPath)) {
       return { success: false, error: 'Accounts file not found' }
     }
-    
+
     const data = readFileSync(accountsPath, 'utf-8')
     const accounts: Account[] = JSON.parse(data)
-    
+
     const filteredAccounts = accounts.filter(a => a.id !== accountId)
-    
+
     writeFileSync(accountsPath, JSON.stringify(filteredAccounts, null, 2), 'utf-8')
-    
+
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -1344,46 +1415,46 @@ ipcMain.handle('account:updateAuth', async (event, { email, accessToken, refresh
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   try {
     sendLog('[INFO] Updating authentication...')
-    
+
     let data: Record<string, any> = {}
     if (existsSync(paths.storagePath)) {
       data = JSON.parse(readFileSync(paths.storagePath, 'utf-8'))
     }
-    
+
     data['cursorAuth/cachedSignUpType'] = 'Auth_0'
     if (email) data['cursorAuth/cachedEmail'] = email
     if (accessToken) data['cursorAuth/accessToken'] = accessToken
     if (refreshToken) data['cursorAuth/refreshToken'] = refreshToken
-    
+
     const dir = join(paths.storagePath, '..')
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true })
     }
-    
+
     writeFileSync(paths.storagePath, JSON.stringify(data, null, 4), 'utf-8')
     sendLog('[OK] storage.json updated')
-    
+
     if (existsSync(paths.sqlitePath)) {
       sendLog('[INFO] Updating SQLite database...')
-      
+
       const sqliteUpdates: Record<string, string> = {
         'cursorAuth/cachedSignUpType': 'Auth_0'
       }
       if (email) sqliteUpdates['cursorAuth/cachedEmail'] = email
       if (accessToken) sqliteUpdates['cursorAuth/accessToken'] = accessToken
       if (refreshToken) sqliteUpdates['cursorAuth/refreshToken'] = refreshToken
-      
+
       const success = await updateSqliteDatabase(paths.sqlitePath, sqliteUpdates, sendLog)
       if (success) {
         sendLog('[OK] SQLite database updated')
       }
     }
-    
+
     sendLog('[OK] Authentication updated successfully')
-    
+
     return { success: true, logs }
   } catch (err: any) {
     sendLog(`[ERROR] ${err.message}`)
@@ -1401,15 +1472,15 @@ ipcMain.handle('cursor:totallyReset', async (event) => {
     logs.push(message)
     event.sender.send('log:message', message)
   }
-  
+
   sendLog('[INFO] Starting complete Cursor reset...')
   sendLog('[WARN] This will remove all Cursor settings and data')
-  
+
   try {
     const paths = getCursorPaths()
-    
+
     let cursorDataDirs: string[] = []
-    
+
     if (process.platform === 'win32') {
       const appdata = process.env.APPDATA || ''
       const localappdata = process.env.LOCALAPPDATA || ''
@@ -1433,7 +1504,7 @@ ipcMain.handle('cursor:totallyReset', async (event) => {
         join(home, '.config', 'cursor-updater')
       ]
     }
-    
+
     for (const dir of cursorDataDirs) {
       if (existsSync(dir)) {
         try {
@@ -1449,33 +1520,33 @@ ipcMain.handle('cursor:totallyReset', async (event) => {
         }
       }
     }
-    
+
     sendLog('')
     sendLog('[INFO] Resetting machine identifiers...')
-    
+
     const newIds = generateNewIds()
-    
+
     const storageDir = join(paths.storagePath, '..')
     if (!existsSync(storageDir)) {
       mkdirSync(storageDir, { recursive: true })
     }
-    
+
     writeFileSync(paths.storagePath, JSON.stringify(newIds, null, 4), 'utf-8')
     sendLog('[OK] Created fresh storage.json with new IDs')
-    
+
     const machineIdDir = join(paths.machineIdPath, '..')
     if (!existsSync(machineIdDir)) {
       mkdirSync(machineIdDir, { recursive: true })
     }
     writeFileSync(paths.machineIdPath, newIds['telemetry.devDeviceId'], 'utf-8')
     sendLog('[OK] Created fresh machineId file')
-    
+
     sendLog('')
     sendLog('[OK] Complete reset finished')
     sendLog('[INFO] Please restart your system for full effect')
-    
+
     return { success: true, logs }
-    
+
   } catch (err: any) {
     sendLog(`[ERROR] ${err.message}`)
     return { success: false, logs, error: err.message }
