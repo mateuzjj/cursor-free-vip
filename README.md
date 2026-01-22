@@ -6,8 +6,6 @@
 
 *Free Trial Helper for Cursor AI*
 
-[![Stars](https://img.shields.io/github/stars/ChloeVPin/cursor-free-vip?style=flat-square)](https://github.com/ChloeVPin/cursor-free-vip/stargazers)
-[![Forks](https://img.shields.io/github/forks/ChloeVPin/cursor-free-vip?style=flat-square)](https://github.com/ChloeVPin/cursor-free-vip/network/members)
 [![License](https://img.shields.io/badge/license-CC%20BY--NC--ND%204.0-lightgrey?style=flat-square)](LICENSE.md)
 
 [中文](README.zh_CN.md) • [Русский](README.ru.md)
