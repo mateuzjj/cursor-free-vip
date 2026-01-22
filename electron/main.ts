@@ -1552,3 +1552,131 @@ ipcMain.handle('cursor:totallyReset', async (event) => {
     return { success: false, logs, error: err.message }
   }
 })
+
+// ============================================
+// IPC Handler - Token Bypass (Pragmatic Approach)
+// ============================================
+
+ipcMain.handle('token:bypass', async (event) => {
+  const logs: string[] = []
+  
+  function sendLog(message: string) {
+    logs.push(message)
+    event.sender.send('log:message', message)
+  }
+  
+  sendLog('[INFO] Starting token limit bypass...')
+  sendLog('[INFO] Using pragmatic approach (no deobfuscation needed)')
+  
+  try {
+    const paths = getCursorPaths()
+    const cursorDataPath = join(process.env.APPDATA || '', 'Cursor')
+    
+    // Create backup directory
+    const backupDir = join(cursorDataPath, `token-bypass-backup-${Date.now()}`)
+    mkdirSync(backupDir, { recursive: true })
+    sendLog(`[INFO] Backup directory: ${backupDir}`)
+    
+    // ========================================
+    // Strategy 1: Clear Usage History
+    // ========================================
+    sendLog('')
+    sendLog('[INFO] Strategy 1: Clearing usage history...')
+    
+    const historyPath = join(cursorDataPath, 'User', 'History')
+    if (existsSync(historyPath)) {
+      try {
+        const historyDirs = readdirSync(historyPath)
+        let clearedCount = 0
+        
+        for (const dir of historyDirs) {
+          const dirPath = join(historyPath, dir)
+          try {
+            const stats = statSync(dirPath)
+            if (stats.isDirectory()) {
+              rmSync(dirPath, { recursive: true, force: true })
+              clearedCount++
+            }
+          } catch (err: any) {
+            sendLog(`[WARN] Could not clear ${dir}: ${err.message}`)
+          }
+        }
+        
+        sendLog(`[OK] Cleared ${clearedCount} history directories`)
+      } catch (err: any) {
+        sendLog(`[WARN] History clearing failed: ${err.message}`)
+      }
+    } else {
+      sendLog('[INFO] No history directory found')
+    }
+    
+    // ========================================
+    // Strategy 2: Modify storage.json
+    // ========================================
+    sendLog('')
+    sendLog('[INFO] Strategy 2: Modifying storage.json...')
+    
+    if (existsSync(paths.storagePath)) {
+      try {
+        const backupStoragePath = join(backupDir, 'storage.json')
+        copyFileSync(paths.storagePath, backupStoragePath)
+        sendLog(`[INFO] Backup: ${backupStoragePath}`)
+        
+        let rawContent = readFileSync(paths.storagePath, 'utf-8')
+        if (rawContent.charCodeAt(0) === 0xFEFF) {
+          rawContent = rawContent.slice(1)
+        }
+        rawContent = rawContent.trim()
+        
+        const storage = JSON.parse(rawContent)
+        
+        storage['cursor.premium'] = true
+        storage['cursor.subscription'] = 'pro'
+        storage['cursor.accountType'] = 'premium'
+        storage['cursor.tokensUsed'] = 0
+        storage['cursor.tokensRemaining'] = 999999
+        storage['cursor.requestsRemaining'] = 999999
+        storage['cursor.trialExpired'] = false
+        storage['cursor.isPremiumUser'] = true
+        
+        let wasReadOnly = false
+        try {
+          const stats = statSync(paths.storagePath)
+          if (!(stats.mode & 0o200)) {
+            wasReadOnly = true
+            chmodSync(paths.storagePath, 0o666)
+            sendLog('[INFO] Removed ReadOnly from storage.json')
+          }
+        } catch (err: any) {
+          sendLog(`[WARN] Could not check permissions: ${err.message}`)
+        }
+        
+        writeFileSync(paths.storagePath, JSON.stringify(storage, null, 2), 'utf-8')
+        
+        if (wasReadOnly) {
+          try {
+            chmodSync(paths.storagePath, 0o444)
+            sendLog('[INFO] Restored ReadOnly to storage.json')
+          } catch (err: any) {
+            sendLog(`[WARN] Could not restore ReadOnly: ${err.message}`)
+          }
+        }
+        
+        sendLog('[OK] storage.json modified with premium flags')
+      } catch (err: any) {
+        sendLog(`[ERROR] storage.json modification failed: ${err.message}`)
+      }
+    }
+    
+    sendLog('')
+    sendLog('[OK] Token bypass completed!')
+    sendLog('[IMPORTANT] Please restart Cursor for changes to take effect')
+    sendLog(`[INFO] Backup location: ${backupDir}`)
+    
+    return { success: true, logs }
+    
+  } catch (err: any) {
+    sendLog(`[ERROR] ${err.message}`)
+    return { success: false, logs, error: err.message }
+  }
+})
