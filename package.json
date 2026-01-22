@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "[Beta] Cursor Free Trial Helper - GUI Version. Windows only (macOS/Linux coming soon). Educational purposes only.",
   "main": "dist-electron/main.js",
-  "author": "ChloeVPin",
+  "author": "mateuzjj",
   "license": "CC-BY-NC-ND-4.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ChloeVPin/cursor-free-vip.git"
+    "url": "https://github.com/mateuzjj/cursor-free-vip.git"
   },
   "scripts": {
     "dev": "vite",
